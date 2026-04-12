@@ -1,0 +1,10 @@
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+coverage.txt
+vendor/
+*.prof
+.env

@@ -52,16 +52,7 @@ func runImport(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	imported := 0
-	skipped := 0
-	for k, v := range parsed {
-		if _, exists := s.Env[k]; exists && !importOverwrite {
-			skipped++
-			continue
-		}
-		s.Env[k] = v
-		imported++
-	}
+	imported, skipped := applyParsedVars(s.Env, parsed, importOverwrite)
 
 	if err := store.Save(store.DefaultStorePath(), s, passphrase); err != nil {
 		return fmt.Errorf("failed to save store: %w", err)
@@ -69,4 +60,19 @@ func runImport(cmd *cobra.Command, args []string) error {
 
 	fmt.Fprintf(os.Stdout, "Imported %d variable(s), skipped %d existing.\n", imported, skipped)
 	return nil
+}
+
+// applyParsedVars merges parsed key-value pairs into dst.
+// If overwrite is false, existing keys are left unchanged and counted as skipped.
+// Returns the number of imported and skipped entries.
+func applyParsedVars(dst map[string]string, src map[string]string, overwrite bool) (imported, skipped int) {
+	for k, v := range src {
+		if _, exists := dst[k]; exists && !overwrite {
+			skipped++
+			continue
+		}
+		dst[k] = v
+		imported++
+	}
+	return imported, skipped
 }

@@ -1,5 +1,4 @@
-// Package remote provides functionality for pushing and pulling
-// encrypted .env stores to and from remote HTTP endpoints.
+// Packagen// encrypted .env stores to and from remote HTTP endpoints.
 package remote
 
 import (
@@ -76,6 +75,30 @@ func (c *Client) Pull(env string) ([]byte, error) {
 		return nil, fmt.Errorf("remote: read response body: %w", err)
 	}
 	return data, nil
+}
+
+// Delete removes the environment entry from the remote endpoint.
+func (c *Client) Delete(env string) error {
+	url := fmt.Sprintf("%s/envs/%s", c.BaseURL, env)
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		return fmt.Errorf("remote: build delete request: %w", err)
+	}
+	c.setHeaders(req)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("remote: delete request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("remote: environment %q not found on server", env)
+	}
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("remote: delete returned unexpected status %d", resp.StatusCode)
+	}
+	return nil
 }
 
 func (c *Client) setHeaders(req *http.Request) {

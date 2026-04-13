@@ -28,6 +28,10 @@ func init() {
 func runImport(cmd *cobra.Command, args []string) error {
 	filePath := args[0]
 
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return fmt.Errorf("file not found: %q", filePath)
+	}
+
 	passphrase, err := crypto.ResolvePassphrase()
 	if err != nil {
 		return fmt.Errorf("passphrase error: %w", err)
@@ -41,6 +45,11 @@ func runImport(cmd *cobra.Command, args []string) error {
 	parsed, err := env.ParseFile(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to parse file %q: %w", filePath, err)
+	}
+
+	if len(parsed) == 0 {
+		fmt.Fprintln(os.Stdout, "No variables found in file.")
+		return nil
 	}
 
 	imported := 0

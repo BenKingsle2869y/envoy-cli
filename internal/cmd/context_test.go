@@ -70,3 +70,20 @@ func TestListContexts_ReturnsStoreFiles(t *testing.T) {
 		t.Errorf("expected 2 contexts, got %d: %v", len(ctxs), ctxs)
 	}
 }
+
+func TestListContexts_EmptyDir(t *testing.T) {
+	tmp, cleanup := withTempHome(t)
+	defer cleanup()
+
+	// Create the .envoy directory with no store files inside.
+	dir := filepath.Join(tmp, ".envoy")
+	os.MkdirAll(dir, 0700)
+
+	ctxs, err := ListContexts()
+	if err != nil {
+		t.Fatalf("ListContexts: %v", err)
+	}
+	if len(ctxs) != 0 {
+		t.Errorf("expected 0 contexts, got %d: %v", len(ctxs), ctxs)
+	}
+}

@@ -58,6 +58,21 @@ func TestDiff_UnchangedKeys(t *testing.T) {
 	}
 }
 
+func TestDiff_EmptyMaps(t *testing.T) {
+	base := map[string]string{}
+	target := map[string]string{}
+
+	result := Diff(base, target)
+
+	if result.HasChanges() {
+		t.Error("expected no changes for two empty maps")
+	}
+	if len(result.Added) != 0 || len(result.Removed) != 0 || len(result.Changed) != 0 {
+		t.Errorf("expected all empty diff fields, got added=%v removed=%v changed=%v",
+			result.Added, result.Removed, result.Changed)
+	}
+}
+
 func TestApply_MergesTargetIntoBase(t *testing.T) {
 	base := map[string]string{"A": "1", "B": "old"}
 	target := map[string]string{"B": "new", "C": "3"}

@@ -21,3 +21,21 @@ package cmd
 //
 // The generated script should be sourced in the shell's configuration file
 // or placed in the appropriate completion directory for persistent use.
+//
+// Installation examples:
+//
+// Bash (add to ~/.bashrc or ~/.bash_profile):
+//
+//	source <(envoy completion bash)
+//
+// Zsh (add to ~/.zshrc):
+//
+//	source <(envoy completion zsh)
+//
+// Fish (save to fish completions directory):
+//
+//	envoy completion fish > ~/.config/fish/completions/envoy.fish
+//
+// PowerShell (add to $PROFILE):
+//
+//	envoy completion powershell | Out-String | Invoke-Expression

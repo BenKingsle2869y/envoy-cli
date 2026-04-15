@@ -71,6 +71,10 @@ func TestSnapshotRestore_RestoresData(t *testing.T) {
 	if v, _ := restored.Get("FOO"); v != "bar" {
 		t.Errorf("expected FOO=bar after restore, got %q", v)
 	}
+	// Ensure key added after snapshot is no longer present
+	if v, ok := restored.Get("NEW_KEY"); ok {
+		t.Errorf("expected NEW_KEY to be absent after restore, got %q", v)
+	}
 }
 
 func TestSnapshotRestore_NotFound(t *testing.T) {

@@ -2,87 +2,102 @@ package store
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/envoy-cli/envoy/internal/crypto"
-	"github.com/envoy-cli/envoy/internal/env"
+	"envoy-cli/internal/crypto"
 )
 
-const defaultStoreFile = ".envoy"
-
-// EnvStore represents an encrypted store of environment variable sets.
-type EnvStore struct {
-	Environments map[string]string `json:"environments"` // name -> encrypted payload (base64)
+// Store holds environment key/value entries.
+type Store struct {
+	Entries map[string]string `json:"entries"`
+	Tags    map[string][]string `json:"tags,omitempty"`
+	Pins    map[string]bool     `json:"pins,omitempty"`
 }
 
-// Load reads and decrypts an EnvStore from disk.
-func Load(path, passphrase string) (*EnvStore, error) {
+// DefaultStorePath returns the default path for the active store.
+func DefaultStorePath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".envoy", "default.enc")
+}
+
+// Load decrypts and deserialises a store from disk.
+func Load(path, passphrase string) (*Store, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return &EnvStore{Environments: make(map[string]string)}, nil
+		if errors.Is(err, os.ErrNotExist) {
+			return &Store{Entries: map[string]string{}}, nil
 		}
-		return nil, fmt.Errorf("reading store: %w", err)
+		return nil, fmt.Errorf("read store: %w", err)
 	}
 
-	key, err := crypto.DeriveKey(passphrase)
+	key, err := crypto.DeriveKey(passphrase, nil)
 	if err != nil {
-		return nil, fmt.Errorf("deriving key: %w", err)
+		return nil, fmt.Errorf("derive key: %w", err)
 	}
 
-	plaintext, err := crypto.Decrypt(key, string(data))
+	plain, err := crypto.Decrypt(key, data)
 	if err != nil {
-		return nil, fmt.Errorf("decrypting store: %w", err)
+		return nil, fmt.Errorf("decrypt store: %w", err)
 	}
 
-	var store EnvStore
-	if err := json.Unmarshal([]byte(plaintext), &store); err != nil {
-		return nil, fmt.Errorf("parsing store: %w", err)
+	var s Store
+	if err := json.Unmarshal(plain, &s); err != nil {
+		return nil, fmt.Errorf("unmarshal store: %w", err)
 	}
-	return &store, nil
+	if s.Entries == nil {
+		s.Entries = map[string]string{}
+	}
+	return &s, nil
 }
 
-// Save encrypts and writes the EnvStore to disk.
-func Save(path, passphrase string, store *EnvStore) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return fmt.Errorf("creating store directory: %w", err)
+// Save serialises and encrypts a store to disk.
+func Save(path, passphrase string, s *Store) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return fmt.Errorf("mkdir: %w", err)
 	}
 
-	data, err := json.Marshal(store)
+	data, err := json.Marshal(s)
 	if err != nil {
-		return fmt.Errorf("serializing store: %w", err)
+		return fmt.Errorf("marshal store: %w", err)
 	}
 
-	key, err := crypto.DeriveKey(passphrase)
+	key, err := crypto.DeriveKey(passphrase, nil)
 	if err != nil {
-		return fmt.Errorf("deriving key: %w", err)
+		return fmt.Errorf("derive key: %w", err)
 	}
 
-	ciphertext, err := crypto.Encrypt(key, string(data))
+	cipher, err := crypto.Encrypt(key, data)
 	if err != nil {
-		return fmt.Errorf("encrypting store: %w", err)
+		return fmt.Errorf("encrypt store: %w", err)
 	}
 
-	return os.WriteFile(path, []byte(ciphertext), 0600)
+	if err := os.WriteFile(path, cipher, 0o600); err != nil {
+		return fmt.Errorf("write store: %w", err)
+	}
+	return nil
 }
 
-// PutEnv stores a parsed env map under the given environment name.
-func (s *EnvStore) PutEnv(name string, vars map[string]string) {
-	s.Environments[name] = env.Serialize(vars)
-}
-
-// GetEnv retrieves and parses the env vars for the given environment name.
-func (s *EnvStore) GetEnv(name string) (map[string]string, error) {
-	raw, ok := s.Environments[name]
+// Get returns the value for a key, or an error if not found.
+func (s *Store) Get(key string) (string, error) {
+	v, ok := s.Entries[key]
 	if !ok {
-		return nil, fmt.Errorf("environment %q not found in store", name)
+		return "", fmt.Errorf("key %q not found", key)
 	}
-	return env.ParseString(raw)
+	return v, nil
 }
 
-// DefaultStorePath returns the default path for the store file.
-func DefaultStorePath() string {
-	return defaultStoreFile
+// Set inserts or updates a key.
+func (s *Store) Set(key, value string) {
+	if s.Entries == nil {
+		s.Entries = map[string]string{}
+	}
+	s.Entries[key] = value
+}
+
+// Delete removes a key from the store.
+func (s *Store) Delete(key string) {
+	delete(s.Entries, key)
 }

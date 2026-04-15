@@ -10,6 +10,9 @@ import (
 	"envoy-cli/internal/store"
 )
 
+// setupCloneStores creates a temporary directory for clone tests, sets the
+// required environment variables, and returns the directory path along with
+// a cleanup function that removes the directory.
 func setupCloneStores(t *testing.T) (string, func()) {
 	t.Helper()
 	tmpDir, err := os.MkdirTemp("", "clone-test-*")
@@ -21,15 +24,20 @@ func setupCloneStores(t *testing.T) (string, func()) {
 	return tmpDir, func() { os.RemoveAll(tmpDir) }
 }
 
+// saveContext is a test helper that saves a context store file under tmpDir.
+func saveContext(t *testing.T, tmpDir, ctx string, data map[string]string) {
+	t.Helper()
+	p := filepath.Join(tmpDir, fmt.Sprintf("%s.env.enc", ctx))
+	if err := store.Save(p, "test-passphrase", data); err != nil {
+		t.Fatalf("Save %s: %v", ctx, err)
+	}
+}
+
 func TestCloneCmd_ClonesContext(t *testing.T) {
 	tmpDir, cleanup := setupCloneStores(t)
 	defer cleanup()
 
-	srcPath := filepath.Join(tmpDir, "src.env.enc")
-	data := map[string]string{"FOO": "bar", "BAZ": "qux"}
-	if err := store.Save(srcPath, "test-passphrase", data); err != nil {
-		t.Fatalf("Save: %v", err)
-	}
+	saveContext(t, tmpDir, "src", map[string]string{"FOO": "bar", "BAZ": "qux"})
 
 	RootCmd.SetArgs([]string{"clone", "src", "dst"})
 	var buf bytes.Buffer
@@ -66,10 +74,7 @@ func TestCloneCmd_FailsWhenDestinationExists(t *testing.T) {
 	defer cleanup()
 
 	for _, ctx := range []string{"alpha", "beta"} {
-		p := filepath.Join(tmpDir, fmt.Sprintf("%s.env.enc", ctx))
-		if err := store.Save(p, "test-passphrase", map[string]string{"K": "v"}); err != nil {
-			t.Fatalf("Save %s: %v", ctx, err)
-		}
+		saveContext(t, tmpDir, ctx, map[string]string{"K": "v"})
 	}
 
 	RootCmd.SetArgs([]string{"clone", "alpha", "beta"})
@@ -82,15 +87,8 @@ func TestCloneCmd_OverwriteFlag(t *testing.T) {
 	tmpDir, cleanup := setupCloneStores(t)
 	defer cleanup()
 
-	for ctx, kv := range map[string]map[string]string{
-		"src": {"NEW": "value"},
-		"dst": {"OLD": "stale"},
-	} {
-		p := filepath.Join(tmpDir, ctx+".env.enc")
-		if err := store.Save(p, "test-passphrase", kv); err != nil {
-			t.Fatalf("Save %s: %v", ctx, err)
-		}
-	}
+	saveContext(t, tmpDir, "src", map[string]string{"NEW": "value"})
+	saveContext(t, tmpDir, "dst", map[string]string{"OLD": "stale"})
 
 	RootCmd.SetArgs([]string{"clone", "src", "dst", "--overwrite"})
 	if err := RootCmd.Execute(); err != nil {

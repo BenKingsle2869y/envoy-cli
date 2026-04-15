@@ -38,34 +38,37 @@ func buildTestRoot() *cobra.Command {
 	return root
 }
 
-func TestCompletionIntegration_BashContainsCommandName(t *testing.T) {
+// runCompletion is a helper that executes the completion subcommand for the
+// given shell and returns the captured output.
+func runCompletion(t *testing.T, shell string) string {
+	t.Helper()
 	root := buildTestRoot()
 	buf := &bytes.Buffer{}
 	root.SetOut(buf)
-	root.SetArgs([]string{"completion", "bash"})
-
+	root.SetArgs([]string{"completion", shell})
 	if err := root.Execute(); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("unexpected error running completion %s: %v", shell, err)
 	}
+	return buf.String()
+}
 
-	output := buf.String()
+func TestCompletionIntegration_BashContainsCommandName(t *testing.T) {
+	output := runCompletion(t, "bash")
 	if !strings.Contains(output, "envoy") {
 		t.Errorf("expected bash completion to reference 'envoy', got: %s", output)
 	}
 }
 
 func TestCompletionIntegration_ZshContainsCommandName(t *testing.T) {
-	root := buildTestRoot()
-	buf := &bytes.Buffer{}
-	root.SetOut(buf)
-	root.SetArgs([]string{"completion", "zsh"})
-
-	if err := root.Execute(); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	output := buf.String()
+	output := runCompletion(t, "zsh")
 	if len(output) == 0 {
 		t.Error("expected non-empty zsh completion output")
+	}
+}
+
+func TestCompletionIntegration_FishContainsCommandName(t *testing.T) {
+	output := runCompletion(t, "fish")
+	if !strings.Contains(output, "envoy") {
+		t.Errorf("expected fish completion to reference 'envoy', got: %s", output)
 	}
 }

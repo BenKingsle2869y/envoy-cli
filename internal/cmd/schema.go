@@ -35,6 +35,13 @@ var schemaAddCmd = &cobra.Command{
 	RunE:  runSchemaAdd,
 }
 
+var schemaRemoveCmd = &cobra.Command{
+	Use:   "remove <key>",
+	Short: "Remove a key from the schema",
+	Args:  cobra.ExactArgs(1),
+	RunE:  runSchemaRemove,
+}
+
 var (
 	schemaRequired    bool
 	schemaDescription string
@@ -45,7 +52,7 @@ func init() {
 	schemaAddCmd.Flags().BoolVar(&schemaRequired, "required", false, "Mark key as required")
 	schemaAddCmd.Flags().StringVar(&schemaDescription, "desc", "", "Description of the key")
 	schemaAddCmd.Flags().StringVar(&schemaDefault, "default", "", "Default value for the key")
-	schemaCmd.AddCommand(schemaShowCmd, schemaAddCmd)
+	schemaCmd.AddCommand(schemaShowCmd, schemaAddCmd, schemaRemoveCmd)
 	rootCmd.AddCommand(schemaCmd)
 }
 
@@ -82,6 +89,32 @@ func runSchemaAdd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to save schema: %w", err)
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "schema entry %q saved\n", key)
+	return nil
+}
+
+func runSchemaRemove(cmd *cobra.Command, args []string) error {
+	key := args[0]
+	path := schemaFilePath()
+	entries, err := LoadSchema(path)
+	if err != nil {
+		return fmt.Errorf("failed to load schema: %w", err)
+	}
+	filtered := make([]SchemaEntry, 0, len(entries))
+	found := false
+	for _, e := range entries {
+		if e.Key == key {
+			found = true
+			continue
+		}
+		filtered = append(filtered, e)
+	}
+	if !found {
+		return fmt.Errorf("schema key %q not found", key)
+	}
+	if err := SaveSchema(path, filtered); err != nil {
+		return fmt.Errorf("failed to save schema: %w", err)
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "schema entry %q removed\n", key)
 	return nil
 }
 

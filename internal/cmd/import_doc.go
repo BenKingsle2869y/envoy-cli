@@ -19,6 +19,9 @@ package cmd
 //	             values from the imported file. Without this flag, existing
 //	             keys are preserved and only new keys are added.
 //
+//	--dry-run    Preview which keys would be added or overwritten without
+//	             making any changes to the store.
+//
 // Examples:
 //
 //	# Import variables, keeping any existing values
@@ -26,6 +29,9 @@ package cmd
 //
 //	# Import and overwrite all matching keys
 //	envoy import --overwrite .env.staging
+//
+//	# Preview changes without modifying the store
+//	envoy import --dry-run .env.staging
 //
 // The passphrase is resolved via ENVOY_PASSPHRASE or a key file, consistent
 // with all other envoy commands.

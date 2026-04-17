@@ -84,3 +84,15 @@ func TestPromoteCmd_SameContextFails(t *testing.T) {
 		t.Error("expected error for same context, got nil")
 	}
 }
+
+func TestPromoteCmd_MissingSourceFails(t *testing.T) {
+	pass := "pass"
+	// dst exists but src does not — promote should return an error
+	dst := StorePathForContext("dst-missing-src")
+	_ = store.Save(dst, pass, &store.Store{Vars: map[string]string{"A": "1"}})
+
+	_, err := execPromoteCmd(t, "nonexistent-src", "dst-missing-src", "--passphrase", pass)
+	if err == nil {
+		t.Error("expected error when source context does not exist, got nil")
+	}
+}

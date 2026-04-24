@@ -87,6 +87,16 @@ func TestClearTTL_RemovesKey(t *testing.T) {
 	}
 }
 
+func TestClearTTL_NonexistentKey(t *testing.T) {
+	path, cleanup := setupTTLStore(t)
+	defer cleanup()
+
+	// Clearing a key that was never set should not return an error.
+	if err := ClearTTL(path, "GHOST_KEY"); err != nil {
+		t.Fatalf("ClearTTL on nonexistent key returned error: %v", err)
+	}
+}
+
 func TestExpiredKeys_ReturnsExpired(t *testing.T) {
 	ttls := TTLMap{
 		"OLD_KEY": time.Now().UTC().Add(-time.Hour),

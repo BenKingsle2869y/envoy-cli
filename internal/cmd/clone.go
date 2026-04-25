@@ -42,6 +42,11 @@ func runClone(cmd *cobra.Command, args []string) error {
 	srcPath := StorePathForContext(srcContext)
 	dstPath := StorePathForContext(dstContext)
 
+	// Verify the source context actually exists before attempting to load it.
+	if _, err := os.Stat(srcPath); os.IsNotExist(err) {
+		return fmt.Errorf("source context %q does not exist", srcContext)
+	}
+
 	if _, err := os.Stat(dstPath); err == nil && !overwrite {
 		return fmt.Errorf("destination context %q already exists; use --overwrite to replace it", dstContext)
 	}

@@ -12,12 +12,14 @@ var renameCmd = &cobra.Command{
 	Long: `Rename renames an existing key in the active environment store.
 
 The value associated with the old key is preserved under the new key name.
-If the old key does not exist or the new key already exists, the command fails.`,
+If the old key does not exist or the new key already exists, the command fails.
+Use --force to overwrite an existing new key.`,
 	Args: cobra.ExactArgs(2),
 	RunE: runRename,
 }
 
 func init() {
+	renameCmd.Flags().BoolP("force", "f", false, "Overwrite the new key if it already exists")
 	rootCmd.AddCommand(renameCmd)
 }
 
@@ -27,6 +29,11 @@ func runRename(cmd *cobra.Command, args []string) error {
 
 	if oldKey == newKey {
 		return fmt.Errorf("old key and new key are the same: %q", oldKey)
+	}
+
+	force, err := cmd.Flags().GetBool("force")
+	if err != nil {
+		return fmt.Errorf("failed to read --force flag: %w", err)
 	}
 
 	passphrase, err := resolvePassphrase()
@@ -45,7 +52,7 @@ func runRename(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("key %q not found", oldKey)
 	}
 
-	if _, exists := st.Entries[newKey]; exists {
+	if _, exists := st.Entries[newKey]; exists && !force {
 		return fmt.Errorf("key %q already exists; use --force to overwrite", newKey)
 	}
 
